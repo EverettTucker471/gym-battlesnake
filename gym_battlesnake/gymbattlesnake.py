@@ -3,9 +3,10 @@ import ctypes
 import pathlib
 import random
 from time import sleep
-from gym import spaces
+import gymnasium as gym
+from gymnasium import spaces
 import torch
-from stable_baselines.common.vec_env import VecEnv
+from stable_baselines3.common.vec_env import VecEnv
 
 def wrap_function(lib, funcname, restype, argtypes):
     """Simplify wrapping ctypes functions"""

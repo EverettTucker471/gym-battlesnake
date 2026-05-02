@@ -50,11 +50,12 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/ArthurFirmino/gym-battlesnake",
     packages=["gym_battlesnake"],
-    install_requires=[
-        'gym',
-        'numpy',
-        'stable-baselines==2.10.0',
-    ],
+    # install_requires=[
+    #     'gymnasium>=0.29.1',
+    #     'numpy>=2.0.0',
+    #     'stable-baselines3>=2.4.0'
+    # ],
+    # Use: pip install stable-baselines3[extra] gymnasium numpy==1.26.4
     ext_modules=[CMakeExtension('gym_battlesnake/gym_battlesnake')],
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,
