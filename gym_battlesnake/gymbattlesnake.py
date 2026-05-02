@@ -130,7 +130,7 @@ class ParallelBattlesnakeEnv(VecEnv):
 
 class BattlesnakeEnv(VecEnv):
     """Multi-Threaded Multi-Agent Snake Environment"""
-    def __init__(self, n_threads=4, n_envs=16, opponents=[], device=torch.device('cpu'), fixed_orientation=False, use_symmetry=False):
+    def __init__(self, n_threads=4, n_envs=16, opponents=[], device=torch.device('cpu'), fixed_orientation=False, use_symmetry=False, *args, **kwargs):
         # Define action and observation space
         self.action_space = spaces.Discrete(4)
         self.observation_space = spaces.Box(low=0,high=255, shape=(NUM_LAYERS, LAYER_WIDTH, LAYER_HEIGHT), dtype=np.uint8)
@@ -144,7 +144,7 @@ class BattlesnakeEnv(VecEnv):
         if use_symmetry and not fixed_orientation:
             raise ValueError("symmetry must be used with fixed orientation")
         self.ptr = env_new(self.n_threads, self.n_envs, self.n_opponents+1, self.fixed_orientation, self.use_symmetry)
-        super(BattlesnakeEnv, self).__init__(self.n_envs, self.observation_space, self.action_space)
+        super(BattlesnakeEnv, self).__init__(self.n_envs, self.observation_space, self.action_space, *args, **kwargs)
         self.reset()
 
     def close(self):
@@ -196,18 +196,24 @@ class BattlesnakeEnv(VecEnv):
         actptr = env_actptr(self.ptr, agent_i)
         return np.ctypeslib.as_array(actptr, shape=(self.n_envs,))
 
+    # Referring to superclass methods for less important details
+    def env_is_wrapped(self, wrapper_class, indices=None):
+        # Safest baseline: just tell SB3 that no custom wrappers are attached
+        return [False] * self.num_envs
+
     def get_attr(self, attr_name, indices=None):
-        pass
+        # Assuming the old VecEnv stores the individual environments in `self.envs`
+        target_envs = self.envs if indices is None else [self.envs[i] for i in indices]
+        return [getattr(env, attr_name) for env in target_envs]
 
     def set_attr(self, attr_name, value, indices=None):
-        pass
+        target_envs = self.envs if indices is None else [self.envs[i] for i in indices]
+        for env in target_envs:
+            setattr(env, attr_name, value)
 
-    def env_method(self,
-                   method_name,
-                   *method_args,
-                   indices=None,
-                   **method_kwargs):
-        pass
+    def env_method(self, method_name, *method_args, indices=None, **method_kwargs):
+        target_envs = self.envs if indices is None else [self.envs[i] for i in indices]
+        return [getattr(env, method_name)(*method_args, **method_kwargs) for env in target_envs]
 
-    def seed(self, seed=None):
-        pass
+    def seed(self, seed = None):
+        return super().seed(seed)

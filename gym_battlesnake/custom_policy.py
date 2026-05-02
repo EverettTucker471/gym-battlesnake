@@ -9,7 +9,7 @@ class CustomPolicy(BaseFeaturesExtractor):
     """
     def __init__(self, observation_space, features_dim=512):
         # We assume the observation_space shape is (6, 39, 39) - Channel First!
-        super(CustomPolicy, self).__init__(observation_space, features_dim)
+        super(CustomPolicy, self).__init__(observation_space=observation_space, features_dim=features_dim)
 
         n_input_channels = observation_space.shape[0]
 
