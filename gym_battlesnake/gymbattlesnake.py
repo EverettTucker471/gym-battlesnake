@@ -28,6 +28,7 @@ env_new = wrap_function(gamelib, 'env_new', ctypes.c_void_p, [ctypes.c_uint,ctyp
 env_delete = wrap_function(gamelib, 'env_delete', None, [ctypes.c_void_p])
 env_reset = wrap_function(gamelib, 'env_reset', None, [ctypes.c_void_p])
 env_step = wrap_function(gamelib, 'env_step', None, [ctypes.c_void_p])
+env_render = wrap_function(gamelib, 'env_render', None, [ctypes.c_void_p])
 env_obsptr = wrap_function(gamelib, 'env_getobspointer', ctypes.POINTER(ctypes.c_ubyte), [ctypes.c_void_p,ctypes.c_uint])
 env_actptr = wrap_function(gamelib, 'env_getactpointer', ctypes.POINTER(ctypes.c_ubyte), [ctypes.c_void_p,ctypes.c_uint])
 env_infoptr = wrap_function(gamelib, 'env_getinfopointer', ctypes.POINTER(info), [ctypes.c_void_p])
@@ -186,7 +187,10 @@ class BattlesnakeEnv(VecEnv):
     def reset(self):
         env_reset(self.ptr)
         return self.getobs(0)
-
+    
+    def render(self):
+        env_render(self.ptr)
+        sleep(0.1)
 
     def getobs(self, agent_i):
         obsptr = env_obsptr(self.ptr, agent_i)

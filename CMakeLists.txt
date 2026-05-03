@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.5)
 project(gymbattlesnake)
 
 set(CMAKE_CXX_STANDARD 14)
@@ -9,7 +9,8 @@ find_package(Threads REQUIRED)
 
 file(GLOB SOURCES "${PROJECT_DIR}/src/*.cpp")
 
-add_library(gymbattlesnake SHARED ${SOURCES})
+add_library(gymbattlesnake SHARED ${SOURCES}
+    gym_battlesnake/include/gamerenderer.h)
 target_include_directories(gymbattlesnake PRIVATE "${PROJECT_DIR}/include")
-target_link_libraries(gymbattlesnake Threads::Threads)
+target_link_libraries(gymbattlesnake Threads::Threads sfml-graphics sfml-window sfml-system)
 target_compile_options(gymbattlesnake PRIVATE -Wall -fPIC -pthread)

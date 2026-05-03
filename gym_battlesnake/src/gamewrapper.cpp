@@ -9,6 +9,7 @@
 
 #include "gameinstance.h"
 #include "threadpool.h"
+#include "gamerenderer.h"
 
 #define NUM_LAYERS 17 // 7 layers indicating the number of alive opponents
 #define LAYER_WIDTH 23
@@ -409,10 +410,20 @@ public:
     threadpool_.wait();
   }
 
+  void render() {
+    if(!gr_) {
+        gr_.reset(new GameRenderer(800,600));
+        gr_->init();
+    }
+    gr_->attach(envs_[0]);
+    gr_->render();
+  }
+
   unsigned n_threads_, n_envs_, n_models_;
   ThreadPool threadpool_;
   bool fixed_orientation_, use_symmetry_;
   std::vector<std::shared_ptr<GameInstance>> envs_;
+  std::unique_ptr<GameRenderer> gr_;
   std::vector<uint8_t> obss_;
   std::vector<uint8_t> acts_;
   std::vector<info> info_;
@@ -425,6 +436,7 @@ GameWrapper *env_new(unsigned n_threads, unsigned n_envs, unsigned n_models, boo
 void env_delete(GameWrapper *p) { delete p; }
 void env_reset(GameWrapper *p) { p->reset(); }
 void env_step(GameWrapper *p) { p->step(); }
+void env_render(GameWrapper *p) { p->render(); }
 uint8_t *env_getobspointer(GameWrapper *p, unsigned model_i) {
   return &p->obss_[model_i * (p->n_envs_ * OBS_SIZE)];
 }
