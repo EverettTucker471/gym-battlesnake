@@ -103,7 +103,10 @@ class ParallelBattlesnakeEnv(VecEnv):
     def reset(self):
         env_reset(self.ptr)
         return self.getobs(0)
-
+    
+    def render(self):
+        env_render(self.ptr)
+        sleep(0.1)
 
     def getobs(self, agent_i):
         obsptr = env_obsptr(self.ptr, agent_i)
@@ -113,21 +116,25 @@ class ParallelBattlesnakeEnv(VecEnv):
         actptr = env_actptr(self.ptr, agent_i)
         return np.ctypeslib.as_array(actptr, shape=(self.n_envs,))
 
+    def env_is_wrapped(self, wrapper_class, indices=None):
+        # Safest baseline: just tell SB3 that no custom wrappers are attached
+        return [False] * self.num_envs
+
     def get_attr(self, attr_name, indices=None):
-        pass
+        # Return None for the selected indices
+        n = self.num_envs if indices is None else len(indices)
+        return [None] * n 
 
     def set_attr(self, attr_name, value, indices=None):
+        # Ignoring
         pass
 
-    def env_method(self,
-                   method_name,
-                   *method_args,
-                   indices=None,
-                   **method_kwargs):
+    def env_method(self, method_name, *method_args, indices=None, **method_kwargs):
+        # Ignoring
         pass
 
-    def seed(self, seed=None):
-        pass
+    def seed(self, seed = None):
+        return super().seed(seed)
 
 class BattlesnakeEnv(VecEnv):
     """Multi-Threaded Multi-Agent Snake Environment"""
@@ -200,24 +207,22 @@ class BattlesnakeEnv(VecEnv):
         actptr = env_actptr(self.ptr, agent_i)
         return np.ctypeslib.as_array(actptr, shape=(self.n_envs,))
 
-    # Referring to superclass methods for less important details
     def env_is_wrapped(self, wrapper_class, indices=None):
         # Safest baseline: just tell SB3 that no custom wrappers are attached
         return [False] * self.num_envs
 
     def get_attr(self, attr_name, indices=None):
-        # Assuming the old VecEnv stores the individual environments in `self.envs`
-        target_envs = self.envs if indices is None else [self.envs[i] for i in indices]
-        return [getattr(env, attr_name) for env in target_envs]
+        # Return None for the selected indices
+        n = self.num_envs if indices is None else len(indices)
+        return [None] * n 
 
     def set_attr(self, attr_name, value, indices=None):
-        target_envs = self.envs if indices is None else [self.envs[i] for i in indices]
-        for env in target_envs:
-            setattr(env, attr_name, value)
+        # Ignoring
+        pass
 
     def env_method(self, method_name, *method_args, indices=None, **method_kwargs):
-        target_envs = self.envs if indices is None else [self.envs[i] for i in indices]
-        return [getattr(env, method_name)(*method_args, **method_kwargs) for env in target_envs]
+        # Ignoring
+        pass
 
     def seed(self, seed = None):
         return super().seed(seed)
