@@ -1,6 +1,19 @@
+import io
 import torch
 import numpy as np
 from stable_baselines3 import PPO
+
+# Save the real torch.load function
+original_load = torch.load
+
+# Create a wrapper that removes the buggy flags
+def patched_load(*args, **kwargs):
+    kwargs.pop('weights_only', None)
+    kwargs['mmap'] = False # Disable mmap just to be safe
+    return original_load(*args, **kwargs)
+
+# Override PyTorch's load function globally in this script
+torch.load = patched_load
 
 from gymbattlesnake import ParallelBattlesnakeEnv
 from updated_policy import UpdatedPolicy
@@ -57,7 +70,7 @@ def main():
     # ==========================================
     iterations = 10 
     steps_per_iteration = 200
-    model_name = "ppo_battlesnake_latest"
+    model_name = "ppo_battlesnake_latest.pth"
 
     print("Starting Self-Play Training...")
     for i in range(iterations):
@@ -65,13 +78,17 @@ def main():
         
         # Train the model
         model.learn(total_timesteps=steps_per_iteration, reset_num_timesteps=False)
-        
-        # Save the latest snapshot
-        model.save(model_name)
+
+        torch.save(model.policy.state_dict(), model_name)
         
         print("Updating opponent to the latest model version...")
         # Load the frozen snapshot as a completely independent object
-        new_opponent = PPO.load(model_name, env=env, device=device, print_system_info=True, force_reset=True)
+        # new_opponent = PPO.load(model_name, env=env, device=device, print_system_info=True, force_reset=True)
+
+        # Loading on CPU
+        new_opponent = PPO("CnnPolicy", env, device=device, verbose=1, policy_kwargs=policy_kwargs)
+        weights = torch.load(model_name, map_location=device, weights_only=True)
+        new_opponent.policy.load_state_dict(weights)
         
         # Hot-swap the C++ wrapper's opponent to the newly trained model!
         env.opponent = new_opponent 
@@ -92,7 +109,9 @@ def main():
         device=device, fixed_orientation=True, use_symmetry=True
     )
     
-    final_model = PPO.load(model_name, device=device, print_system_info=True)
+    final_model = PPO("CnnPolicy", env, device=device, verbose=1, policy_kwargs=policy_kwargs)
+    final_weights = torch.load(model_name, map_location=device, weights_only=True)
+    final_model.policy.load_state_dict(final_weights)
     obs = eval_env.reset()
     
     print("Evaluating...")
