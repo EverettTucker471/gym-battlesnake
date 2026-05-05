@@ -93,22 +93,32 @@ class ParallelBattlesnakeEnv(VecEnv):
         env_step(self.ptr)
 
     def step_wait(self):
-
         info = [{} for _ in range(self.n_envs)]
-        dones = np.asarray([ False for _ in range(self.n_envs) ])
+        dones = np.asarray([False for _ in range(self.n_envs)])
         rews = np.zeros((self.n_envs))
 
         infoptr = env_infoptr(self.ptr)
         for i in range(self.n_envs):
+            # Survival reward every step
+            rews[i] += 0.01
+            rews[i] += infoptr[i].length * 0.001
+            if infoptr[i].health < 30:
+                rews[i] -= 0.05
+        
+            # Food reward
+            if infoptr[i].ate:
+                rews[i] += 4.0
+
             if infoptr[i].over:
                 dones[i] = True
                 info[i]['episode'] = {}
                 if infoptr[i].alive:
-                    rews[i] += 1.0
-                    info[i]['episode']['r'] = rews[i]
+                    rews[i] += 5.0
                 else:
                     rews[i] -= 1.0
-                    info[i]['episode']['r'] = rews[i]
+                    if infoptr[i].death_reason == 2:  # wall/body collision
+                        rews[i] -= 1.0
+                info[i]['episode']['r'] = rews[i]
                 info[i]['episode']['l'] = infoptr[i].turn
 
         return self.getobs(0), rews, dones, info
@@ -186,22 +196,32 @@ class BattlesnakeEnv(VecEnv):
         env_step(self.ptr)
 
     def step_wait(self):
-
         info = [{} for _ in range(self.n_envs)]
-        dones = np.asarray([ False for _ in range(self.n_envs) ])
+        dones = np.asarray([False for _ in range(self.n_envs)])
         rews = np.zeros((self.n_envs))
 
         infoptr = env_infoptr(self.ptr)
         for i in range(self.n_envs):
+            # Survival reward every step
+            rews[i] += 0.01
+            rews[i] += infoptr[i].length * 0.001
+            if infoptr[i].health < 30:
+                rews[i] -= 0.05
+        
+            # Food reward
+            if infoptr[i].ate:
+                rews[i] += 4.0
+
             if infoptr[i].over:
                 dones[i] = True
                 info[i]['episode'] = {}
                 if infoptr[i].alive:
-                    rews[i] += 1.0
-                    info[i]['episode']['r'] = rews[i]
+                    rews[i] += 5.0
                 else:
                     rews[i] -= 1.0
-                    info[i]['episode']['r'] = rews[i]
+                    if infoptr[i].death_reason == 2:  # wall/body collision
+                        rews[i] -= 1.0
+                info[i]['episode']['r'] = rews[i]
                 info[i]['episode']['l'] = infoptr[i].turn
 
         return self.getobs(0), rews, dones, info
