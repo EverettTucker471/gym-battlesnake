@@ -77,7 +77,7 @@ def main():
         policy_kwargs=policy_kwargs,
         device=device,
         verbose=1,
-        learning_rate=0.0003,
+        learning_rate=0.0001,
         clip_range=0.2,
         n_steps=512,
         batch_size=1024,
@@ -92,14 +92,14 @@ def main():
     # ==========================================
     model_name = "ppo_battlesnake_latest.pth"
     if training:
-        iterations = 15
-        steps_per_iteration = 100000
+        iterations = 100
+        steps_per_iteration = 250000
         historical_weights = []  # A list of all the models that came before this one, so we can play against older opponents for stability
         print("Starting Self-Play Training...")
         for i in range(iterations):
             print(f"\n--- Self-Play Iteration {i+1}/{iterations} ---")
 
-            model.learn(total_timesteps=steps_per_iteration, reset_num_timesteps=False, tb_log_name="PPO_SelfPlay_UpdatedCNN")
+            model.learn(total_timesteps=steps_per_iteration, reset_num_timesteps=False, tb_log_name="PPO_SelfPlay_Overnight")
 
             current_weights = {k: v.cpu().clone() for k, v in model.policy.state_dict().items()}
             torch.save(current_weights, model_name)
@@ -107,7 +107,7 @@ def main():
 
             new_opponent = PPO("CnnPolicy", env, device=device, verbose=1, policy_kwargs=policy_kwargs)
 
-            if random.random() < 0.6:
+            if random.random() < 0.75:
                 new_opponent.policy.load_state_dict(current_weights)
                 print("Playing against the LATEST model")
             else:
