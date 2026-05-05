@@ -1,5 +1,5 @@
-import io
 import torch
+import random
 import numpy as np
 from stable_baselines3 import PPO
 
@@ -15,6 +15,26 @@ def patched_load(*args, **kwargs):
 # Override PyTorch's load function globally in this script
 torch.load = patched_load
 
+def linear_schedule(initial_value):
+    """
+    Implements a linear schedule for the learning rate,
+    so it decreases over time as the model learns
+    """
+    def func(progress_remaining):
+        return progress_remaining * initial_value
+    return func
+
+
+def log_schedule(initial_value):
+    """
+    Implements a logarithmic scheduler for the learning rate,
+    so it decreases logarithmically over time as the model learns
+    """
+    def func(progress_remaining):
+        return np.log(progress_remaining) * initial_value
+    return func
+
+
 from gymbattlesnake import ParallelBattlesnakeEnv
 from updated_policy import UpdatedPolicy
 
@@ -27,6 +47,7 @@ class RandomAgent:
         return actions, None
         
 def main():
+    training = True  # Change for evaluation vs. training
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using {device}!")
 
@@ -56,59 +77,83 @@ def main():
         policy_kwargs=policy_kwargs,
         device=device,
         verbose=1,
-        learning_rate=0.00003,
-        clip_range=0.1,
+        learning_rate=0.0003,
+        clip_range=0.2,
         n_steps=512,
-        batch_size=256,
+        batch_size=1024,
+        n_epochs=4,
         ent_coef=0.01,
-        target_kl=0.02
+        target_kl=0.03,
+        tensorboard_log="./battlesnake_tb_logs/",
     )
 
     # ==========================================
     # SELF-PLAY CURRICULUM TRAINING LOOP
     # ==========================================
-    iterations = 75 
-    steps_per_iteration = 100000
     model_name = "ppo_battlesnake_latest.pth"
+    if training:
+        iterations = 15
+        steps_per_iteration = 100000
+        historical_weights = []  # A list of all the models that came before this one, so we can play against older opponents for stability
+        print("Starting Self-Play Training...")
+        for i in range(iterations):
+            print(f"\n--- Self-Play Iteration {i+1}/{iterations} ---")
 
-    print("Starting Self-Play Training...")
-    for i in range(iterations):
-        print(f"\n--- Self-Play Iteration {i+1}/{iterations} ---")
+            model.learn(total_timesteps=steps_per_iteration, reset_num_timesteps=False, tb_log_name="PPO_SelfPlay_UpdatedCNN")
 
-        model.learn(total_timesteps=steps_per_iteration, reset_num_timesteps=False)
-        torch.save(model.policy.state_dict(), model_name)
+            current_weights = {k: v.cpu().clone() for k, v in model.policy.state_dict().items()}
+            torch.save(current_weights, model_name)
+            historical_weights.append(current_weights)
 
-        print("Updating opponent to the latest model version...")
-        new_opponent = PPO("CnnPolicy", env, device=device, verbose=1, policy_kwargs=policy_kwargs)
-        weights = torch.load(model_name, map_location=device, weights_only=True)
-        new_opponent.policy.load_state_dict(weights)
-        env.opponent = new_opponent
+            new_opponent = PPO("CnnPolicy", env, device=device, verbose=1, policy_kwargs=policy_kwargs)
 
-    print("Training Complete!")
+            if random.random() < 0.6:
+                new_opponent.policy.load_state_dict(current_weights)
+                print("Playing against the LATEST model")
+            else:
+                random_historical_weights = random.choice(historical_weights)
+                new_opponent.policy.load_state_dict(random_historical_weights)
+                print("Playing against a HISTORICAL model")
+
+            new_opponent.policy.to(device)
+            env.opponent = new_opponent
+
+        print("Training Complete!")
     
-    # Clean up GPU context before evaluation
-    env.close()
-    del model
-    del new_opponent
+        # Clean up GPU context before evaluation
+        env.close()
+        del model
+        del new_opponent
 
     # ==========================================
     # EVALUATION
     # ==========================================
     # Re-initialize for evaluation
     eval_env = ParallelBattlesnakeEnv(
-        n_threads=1, n_envs=1, n_opponents=1, opponent=RandomAgent(), 
-        device=device, fixed_orientation=True, use_symmetry=False
+        n_threads=1, 
+        n_envs=1, 
+        n_opponents=1, 
+        opponent=RandomAgent(), 
+        device=device, 
+        fixed_orientation=True, 
+        use_symmetry=False
     )
     
     final_model = PPO("CnnPolicy", env, device=device, verbose=1, policy_kwargs=policy_kwargs)
     final_weights = torch.load(model_name, map_location=device, weights_only=True)
     final_model.policy.load_state_dict(final_weights)
+
+    # Creating a clone so the final model can play against itself
+    eval_opponent = PPO("CnnPolicy", eval_env, device=device, verbose=1, policy_kwargs=policy_kwargs)
+    eval_opponent.policy.load_state_dict(final_weights)
+    eval_env.opponent = eval_opponent
+
     obs = eval_env.reset()
     
     print("Evaluating...")
     for _ in range(1000):
-        # VecEnv returns an array of actions, so we pass it directly to step
-        actions, _ = final_model.predict(obs) 
+        # Change deterministic=True to false if you see repeated behavior between evaluation iterations
+        actions, _ = final_model.predict(obs, deterministic=False) 
         obs, _, _, _ = eval_env.step(actions) 
         eval_env.render()
 

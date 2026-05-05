@@ -101,23 +101,23 @@ class ParallelBattlesnakeEnv(VecEnv):
         for i in range(self.n_envs):
             # Survival reward every step
             rews[i] += 0.01
-            rews[i] += infoptr[i].length * 0.001
-            if infoptr[i].health < 30:
-                rews[i] -= 0.05
+
+            if infoptr[i].health < 25:
+                rews[i] -= 0.01
         
             # Food reward
             if infoptr[i].ate:
-                rews[i] += 4.0
+                rews[i] += 1.5
 
             if infoptr[i].over:
                 dones[i] = True
                 info[i]['episode'] = {}
                 if infoptr[i].alive:
-                    rews[i] += 5.0
+                    rews[i] += 15.0
                 else:
-                    rews[i] -= 1.0
+                    rews[i] -= 10.0
                     if infoptr[i].death_reason == 2:  # wall/body collision
-                        rews[i] -= 1.0
+                        rews[i] -= 5.0
                 info[i]['episode']['r'] = rews[i]
                 info[i]['episode']['l'] = infoptr[i].turn
 
@@ -204,23 +204,23 @@ class BattlesnakeEnv(VecEnv):
         for i in range(self.n_envs):
             # Survival reward every step
             rews[i] += 0.01
-            rews[i] += infoptr[i].length * 0.001
-            if infoptr[i].health < 30:
-                rews[i] -= 0.05
+
+            if infoptr[i].health < 25:
+                rews[i] -= 0.01
         
             # Food reward
             if infoptr[i].ate:
-                rews[i] += 4.0
+                rews[i] += 1.5
 
             if infoptr[i].over:
                 dones[i] = True
                 info[i]['episode'] = {}
                 if infoptr[i].alive:
-                    rews[i] += 5.0
+                    rews[i] += 15.0
                 else:
-                    rews[i] -= 1.0
+                    rews[i] -= 10.0
                     if infoptr[i].death_reason == 2:  # wall/body collision
-                        rews[i] -= 1.0
+                        rews[i] -= 5.0
                 info[i]['episode']['r'] = rews[i]
                 info[i]['episode']['l'] = infoptr[i].turn
 

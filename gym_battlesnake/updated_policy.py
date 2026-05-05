@@ -14,25 +14,27 @@ class UpdatedPolicy(BaseFeaturesExtractor):
         assert n_input_channels ==  17
 
         # 1. The Convolutional Layers
-        self.base = nn.Sequential(
-            nn.Conv2d(n_input_channels, 32, 3),
+        self.cnn = nn.Sequential(
+            nn.Conv2d(n_input_channels, 32, kernel_size=3, padding=1),
             nn.ELU(),
-            nn.Conv2d(32, 64, 3),
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
             nn.ELU(),
-            nn.Conv2d(64, 128, 3),
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
             nn.ELU(),
-            nn.Conv2d(128, 256, 3),
+            nn.Conv2d(128, 256, kernel_size=3, padding=1),
             nn.Flatten(),
-            nn.Linear(in_features=225*256, out_features=512),
+        )
+
+        with torch.no_grad():
+            dummy_obs = torch.as_tensor(observation_space.sample()[None]).float()
+            flatten_dim = self.cnn(dummy_obs).shape[1]
+
+        self.linear = nn.Sequential(
+            nn.Linear(in_features=flatten_dim, out_features=features_dim),
             nn.LeakyReLU(),
         )
 
-        # Neural Network to approximate the value of the observation
-        self.value_head = nn.Linear(in_features=512, out_features=1)
-
-        # Informs probabilities of the next action based on the observation
-        self.policy_head = nn.Linear(in_features=512, out_features=4)
-
     def forward(self, observations):
         # Pass observations through the CNN, then through the Linear layers
-        return self.base(observations)
+        return self.linear(self.cnn(observations))
+    
